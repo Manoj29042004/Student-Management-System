@@ -24,7 +24,8 @@ A Tkinter-based Student Management application that allows users to add, update,
 - **Validation**: Ensures that all necessary fields are filled and correctly formatted.
 
 ## Screenshots
-*(Include screenshots of your application here)*
+![image](https://github.com/user-attachments/assets/082b152d-0eab-4820-a77f-95e63bf3890c)
+
 
 ## Installation
 
