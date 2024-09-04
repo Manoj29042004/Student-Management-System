@@ -97,8 +97,10 @@ The project relies on the following Python packages:
 - [`pymysql`](https://pymysql.readthedocs.io/en/latest/): For MySQL database connections.
 - [`ttkbootstrap`](https://ttkbootstrap.readthedocs.io/en/latest/): (Optional) For enhanced styling of widgets.
 
+
 ### Installing Dependencies
 
 All dependencies can be installed using the provided `requirements.txt` file:
 ```bash
 pip install -r requirements.txt
+
