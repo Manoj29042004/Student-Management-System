@@ -1,82 +1,87 @@
-import tkinter as tk
-from tkinter import messagebox, ttk
-import pymysql
-from tkcalendar import DateEntry
-import datetime
+import tkinter as tk  # Importing the Tkinter library for GUI components
+from tkinter import messagebox, ttk  # Importing messagebox for error/info popups and ttk for styled widgets
+import pymysql  # Importing pymysql for database connection and operations
+from tkcalendar import DateEntry  # Importing DateEntry from tkcalendar to handle date input
+import datetime  # Importing datetime to work with date objects
 
+# Function to clear all input fields, reset the date picker, and refresh the records in the Treeview
 def clear_entries():
-    for entry in entries:
-        if isinstance(entry, tk.StringVar):
-            entry.set("")
+    for entry in entries:  # Loop through all entries (input fields)
+        if isinstance(entry, tk.StringVar):  # If the entry is a StringVar (e.g., from dropdowns)
+            entry.set("")  # Reset it
         else:
-            entry.delete(0, tk.END)
-    gender_var.set("")
-    branch_var.set("")
-    course_var.set("")
-    tree.selection_remove(tree.selection()) 
-    dob_entry.set_date(datetime.date.today())
-    show_all_records()
+            entry.delete(0, tk.END)  # If it's a text input, clear it
+    gender_var.set("")  # Reset gender selection
+    branch_var.set("")  # Reset branch selection
+    course_var.set("")  # Reset course selection
+    tree.selection_remove(tree.selection())  # Deselect any row in the Treeview
+    dob_entry.set_date(datetime.date.today())  # Reset the DOB field to the current date
+    show_all_records()  # Refresh the records in the Treeview
 
+# Function to validate if an entry (input field) is filled and appropriate selections are made
 def validate_entry(entry):
-    if isinstance(entry, ttk.Entry):
-        if not entry.get().strip():  # Check if the Entry field is empty
-            messagebox.showerror("Input Error", f"{entry.label_text} is required.")
-            entry.focus()
+    if isinstance(entry, ttk.Entry):  # Check if the widget is an Entry
+        if not entry.get().strip():  # If the Entry field is empty
+            messagebox.showerror("Input Error", f"{entry.label_text} is required.")  # Show an error
+            entry.focus()  # Set focus on the missing field
+            return False  # Return validation failure
+        elif branch_var.get() == "":  # Check if the branch is selected
+            messagebox.showerror("Input Error", "Please select a valid Branch.")  # Error for branch
             return False
-        elif branch_var.get() == "":
-            messagebox.showerror("Input Error", "Please select a valid Branch.")
+        elif course_var.get() == "":  # Check if the course is selected
+            messagebox.showerror("Input Error", "Please select a valid Course.")  # Error for course
             return False
-        elif course_var.get() == "":
-            messagebox.showerror("Input Error", "Please select a valid Course.")
+        elif gender_var.get() == "":  # Check if gender is selected
+            messagebox.showerror("Input Error", "Please select a valid Gender.")  # Error for gender
             return False
-        elif gender_var.get() == "":
-            messagebox.showerror("Input Error", "Please select a valid Gender.")
-            return False
-    return True
+    return True  # Validation success
 
-
+# Function to move focus to the next entry when pressing Enter key
 def move_focus(event):
-    widget = event.widget
-    current_index = entries.index(widget)
-    if validate_entry(widget):
-        next_index = (current_index + 1) % len(entries)
-        next_entry = entries[next_index]
-        if isinstance(next_entry, tk.StringVar):
-            next_entry.set('')
-            next_index = (current_index + 2) % len(entries)
-            entries[next_index].focus()
+    widget = event.widget  # Get the widget where the event occurred
+    current_index = entries.index(widget)  # Get the current widget's index in the entries list
+    if validate_entry(widget):  # If the current field passes validation
+        next_index = (current_index + 1) % len(entries)  # Calculate the next widget's index
+        next_entry = entries[next_index]  # Get the next entry field
+        if isinstance(next_entry, tk.StringVar):  # If it's a dropdown or StringVar type field
+            next_entry.set('')  # Reset it
+            next_index = (current_index + 2) % len(entries)  # Skip ahead to the next input field
+            entries[next_index].focus()  # Focus on the next widget
         else:
-            entries[next_index].focus()
+            entries[next_index].focus()  # Focus on the next entry field
 
+# Function to display selected record in input fields when a Treeview row is clicked
 def display_selected_record(event):
-    selected_item = tree.focus()
-    if selected_item:
-        record = tree.item(selected_item)['values']
-        for i, value in enumerate(record):
-            if i < len(entries):
-                if isinstance(entries[i], ttk.Entry):
-                    entries[i].delete(0, tk.END)
-                    entries[i].insert(0, value)
-                elif isinstance(entries[i], tk.StringVar):
-                    entries[i].set(value)
-        branch_var.set(record[6])
-        course_var.set(record[7])
-        gender_var.set(record[8])  # Assuming Gender is at index 8
-        dob_entry.set_date(record[9])  # Assuming DOB is at index 9
+    selected_item = tree.focus()  # Get the currently selected item in the Treeview
+    if selected_item:  # If an item is selected
+        record = tree.item(selected_item)['values']  # Retrieve the values of the selected row
+        for i, value in enumerate(record):  # Loop over the record's values
+            if i < len(entries):  # If the value corresponds to an entry
+                if isinstance(entries[i], ttk.Entry):  # If it's a text entry
+                    entries[i].delete(0, tk.END)  # Clear the entry
+                    entries[i].insert(0, value)  # Insert the value into the entry
+                elif isinstance(entries[i], tk.StringVar):  # If it's a StringVar (dropdown)
+                    entries[i].set(value)  # Set the dropdown value
+        branch_var.set(record[6])  # Set the branch value
+        course_var.set(record[7])  # Set the course value
+        gender_var.set(record[8])  # Set the gender value (assumed index 8)
+        dob_entry.set_date(record[9])  # Set the DOB value (assumed index 9)
 
-
+# Function to save details entered in the form into the database
 def save_details():
-    if all(validate_entry(entry) for entry in entries):
-        roll_number = entries[2].get()
+    if all(validate_entry(entry) for entry in entries):  # Check if all entries pass validation
+        roll_number = entries[2].get()  # Get the roll number (assumed index 2)
         try:
+            # Check if the roll number already exists in the database
             query = "SELECT * FROM students WHERE roll_number=%s"
             cursor.execute(query, (roll_number,))
             result = cursor.fetchone()
 
-            if result:
+            if result:  # If roll number exists, show error
                 messagebox.showerror("Duplicate Entry", "A record with this Roll Number already exists.")
                 return
 
+            # Create a data dictionary to hold input field values
             data = {
                 "First Name": entries[0].get(),
                 "Last Name": entries[1].get(),
@@ -91,41 +96,47 @@ def save_details():
                 "Address": entries[6].get()
             }
 
+            # Insert query for saving the student data
             query = """INSERT INTO students (first_name, last_name, roll_number, email, mobile, alt_mobile, branch, 
                                               course, gender, dob, address)
                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-            values = tuple(data.values())
+            values = tuple(data.values())  # Convert data values to tuple for query execution
 
-            cursor.execute(query, values)
-            conn.commit()
-            messagebox.showinfo("Success", "Record Saved")
-            clear_entries()
+            cursor.execute(query, values)  # Execute the insert query
+            conn.commit()  # Commit the changes to the database
+            messagebox.showinfo("Success", "Record Saved")  # Show success message
+            clear_entries()  # Clear the input fields
         except Exception as e:
-            messagebox.showerror("Database Error", str(e))
-    show_all_records()  # Refresh the data in the Treeview
+            messagebox.showerror("Database Error", str(e))  # Show error if query execution fails
+    show_all_records()  # Refresh the Treeview to show updated records
+
+# Function to load and display all records in the Treeview
 def show_all_records():
-    for row in tree.get_children():
+    for row in tree.get_children():  # Clear the Treeview
         tree.delete(row)
 
     try:
+        # Fetch all records from the students table
         query = "SELECT first_name, last_name, roll_number, email, mobile, alt_mobile, branch, course, gender, dob, address FROM students"
         cursor.execute(query)
-        results = cursor.fetchall()
+        results = cursor.fetchall()  # Get all fetched records
 
-        for row in results:
+        for row in results:  # Insert each record into the Treeview
             tree.insert("", "end", values=row)
     except Exception as e:
-        messagebox.showerror("Database Error", str(e))
+        messagebox.showerror("Database Error", str(e))  # Show error if fetching records fails
 
+# Function to update a selected record in the database
 def update_record():
-    selected_item = tree.focus()
-    if not selected_item:
+    selected_item = tree.focus()  # Get the selected item in the Treeview
+    if not selected_item:  # If no item is selected, show a warning
         messagebox.showwarning("Selection Error", "Please select a record to update.")
         return
 
-    record = tree.item(selected_item)['values']
-    roll_number = record[2]  # Assuming Roll Number is at index 2
+    record = tree.item(selected_item)['values']  # Get the selected record's values
+    roll_number = record[2]  # Get the roll number (assumed index 2)
 
+    # Prepare a dictionary of updated data from the input fields
     updated_data = {
         "First Name": entries[0].get(),
         "Last Name": entries[1].get(),
@@ -139,24 +150,24 @@ def update_record():
         "Address": entries[6].get()
     }
 
-    # Check for changes
+    # Check if any changes were made to the record
     changes_made = False
     for i, key in enumerate(updated_data.keys()):
         if updated_data[key] != record[i]:
-            changes_made = True
+            changes_made = True  # Mark that changes were made
             break
 
-    if not changes_made:
+    if not changes_made:  # If no changes were made, show an error
         messagebox.showerror("Update Error", "You must change at least one field to update.")
         return
 
-    # Only update the fields that have changed
+    # Prepare an update query with only the changed fields
     update_query = "UPDATE students SET "
     update_fields = []
     update_values = []
 
     for i, (key, value) in enumerate(updated_data.items()):
-        if value != record[i]:
+        if value != record[i]:  # Only update changed fields
             update_fields.append(f"{key.lower().replace(' ', '_')}=%s")
             update_values.append(value)
 
@@ -164,205 +175,152 @@ def update_record():
     update_values.append(roll_number)
 
     try:
-        cursor.execute(update_query, tuple(update_values))
-        conn.commit()
-        messagebox.showinfo("Success", "Record Updated")
-        clear_entries()
+        cursor.execute(update_query, tuple(update_values))  # Execute the update query
+        conn.commit()  # Commit the changes to the database
+        messagebox.showinfo("Success", "Record updated successfully.")  # Show success message
+        clear_entries()  # Clear the input fields
     except Exception as e:
-        messagebox.showerror("Database Error", str(e))
+        messagebox.showerror("Database Error", str(e))  # Show error if query execution fails
 
-    show_all_records()
+    show_all_records()  # Refresh the Treeview with updated records
 
-
+# Function to delete a selected record from the database
 def delete_record():
-    selected_item = tree.focus()
-    if not selected_item:
+    selected_item = tree.focus()  # Get the selected item in the Treeview
+    if not selected_item:  # If no item is selected, show a warning
         messagebox.showwarning("Selection Error", "Please select a record to delete.")
         return
 
-    record = tree.item(selected_item)['values']
-    roll_number = record[2]
+    record = tree.item(selected_item)['values']  # Get the selected record's values
+    roll_number = record[2]  # Get the roll number (assumed index 2)
 
+    confirm = messagebox.askyesno("Confirm Deletion", f"Are you sure you want to delete record {roll_number}?")
+    if confirm:  # If user confirms deletion
+        try:
+            query = "DELETE FROM students WHERE roll_number=%s"
+            cursor.execute(query, (roll_number,))  # Execute the delete query
+            conn.commit()  # Commit the changes to the database
+            messagebox.showinfo("Success", "Record deleted successfully.")  # Show success message
+            clear_entries()  # Clear the input fields
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))  # Show error if query execution fails
+
+    show_all_records()  # Refresh the Treeview with updated records
+
+# Initialize database connection
+def init_db():
+    global conn, cursor
     try:
-        query = "DELETE FROM students WHERE roll_number=%s"
-        cursor.execute(query, (roll_number,))
-        conn.commit()
-        messagebox.showinfo("Success", "Record Deleted")
-        clear_entries()
+        conn = pymysql.connect(
+            host='localhost', user='root', password='password', database='student_registration')
+        cursor = conn.cursor()
     except Exception as e:
-        messagebox.showerror("Database Error", str(e))
-    show_all_records()  # Refresh the data in the Treeview
+        messagebox.showerror("Connection Error", f"Unable to connect to the database. Error: {str(e)}")
 
-def search_records():
-    filters = {
-        "first_name": entries[0].get(),
-        "last_name": entries[1].get(),
-        "roll_number": entries[2].get(),
-        "email": entries[3].get(),
-        "mobile": entries[4].get(),
-        "alt_mobile": entries[5].get(),
-        "branch": branch_var.get(),
-        "course": course_var.get(),
-        "gender": gender_var.get(),
-        "address": entries[6].get()
-    }
+# Close the database connection upon closing the app
+def close_db():
+    if conn:
+        conn.close()
 
-    query = "SELECT first_name, last_name, roll_number, email, mobile, alt_mobile, branch, course, gender, dob, address FROM students WHERE 1=1"
-    values = []
+# Define the main app window
+app = tk.Tk()
+app.title("Student Registration System")  # Set the window title
+app.geometry("800x600")  # Set the window size
+app.configure(bg="lightblue")  # Set background color
 
-    for key, value in filters.items():
-        if value:
-            query += f" AND {key} LIKE %s"
-            values.append(f"%{value}%")
-
-    for row in tree.get_children():
-        tree.delete(row)
-
-    try:
-        cursor.execute(query, values)
-        results = cursor.fetchall()
-        for row in results:
-            tree.insert("", "end", values=row)
-    except Exception as e:
-        messagebox.showerror("Database Error", str(e))
-
-def on_closing():
-    if messagebox.askokcancel("Quit", "Do you want to quit?"):
-        if conn:
-            conn.close()
-        root.destroy()
-
-try:
-    conn = pymysql.connect(
-        host="localhost",
-        user="root",
-        password="",
-        db="diet"
-    )
-    cursor = conn.cursor()
-    print("DB Connected")
-except Exception as e:
-    messagebox.showerror("DB Error", str(e))
-    raise
-
-# Tkinter GUI Setup
-root = tk.Tk()
-root.title("Student Management System")
-root.state("zoomed")
-
-fs = ("Times New Roman", 17)
-
-title = tk.Label(root, text="Student Management System", fg="black", bg="yellow", pady=20, font=("Comic Sans MS", 25, "bold"))
-title.grid(row=0, column=0, columnspan=4)
-
-# Arranging the labels and entries
-labels_texts = [
-    ("Enter First Name", "Enter Last Name"),
-    ("Enter Roll Number", "Enter Email"),
-    ("Enter Mobile", "Enter Alternate Phone"),
-    ("Enter Address",)
-]
-
+# Define label and entry fields for the registration form
+labels_texts = ["First Name", "Last Name", "Roll Number", "Email", "Mobile", "Alt Mobile", "Address"]
 entries = []
-for i, labels in enumerate(labels_texts):
-    for j, label_text in enumerate(labels):
-        label = tk.Label(root, text=label_text, font=fs, width=15, bg="yellow", fg="blue")
-        label.grid(row=i+1, column=j*2, pady=10, sticky="e")
 
-        entry = ttk.Entry(root, font=fs)
-        entry.label_text = label_text
-        entry.grid(row=i+1, column=j*2+1, pady=10, padx=10, sticky="w")
-        entries.append(entry)
+for i, label_text in enumerate(labels_texts):
+    label = ttk.Label(app, text=label_text)  # Create label
+    label.grid(row=i, column=0, padx=10, pady=5)  # Place label on the grid
+    entry = ttk.Entry(app)  # Create entry (text field)
+    entry.grid(row=i, column=1, padx=10, pady=5)  # Place entry on the grid
+    entry.label_text = label_text  # Store label text in entry for validation messages
+    entries.append(entry)  # Add entry to the list of entries
 
-# Date of Birth
-dob_label = tk.Label(root, text="Select DOB", font=fs, width=15, bg="yellow", fg="blue")
-dob_label.grid(row=len(labels_texts)+1, column=0, pady=10, sticky="e")
+# Define other input fields such as Gender (Radio buttons), Branch (Dropdown), Course (Dropdown), and DOB (DateEntry)
+gender_var = tk.StringVar()  # Variable to store gender selection
+branch_var = tk.StringVar()  # Variable to store branch selection
+course_var = tk.StringVar()  # Variable to store course selection
 
-dob_entry = DateEntry(root, font=fs, width=17, background='darkblue', foreground='white', date_pattern="yyyy-mm-dd")
-dob_entry.grid(row=len(labels_texts)+1, column=1, pady=10, padx=10, sticky="w")
+# Gender selection with radio buttons
+gender_label = ttk.Label(app, text="Gender")
+gender_label.grid(row=len(entries), column=0, padx=10, pady=5)
+gender_frame = ttk.Frame(app)  # Create a frame to hold radio buttons
+gender_frame.grid(row=len(entries), column=1, padx=10, pady=5)
+male_radio = ttk.Radiobutton(gender_frame, text="Male", variable=gender_var, value="Male")
+male_radio.grid(row=0, column=0)
+female_radio = ttk.Radiobutton(gender_frame, text="Female", variable=gender_var, value="Female")
+female_radio.grid(row=0, column=1)
+entries.append(gender_var)  # Add gender_var to the list of entries for validation
 
-# Gender Label and Radio Buttons
-gender_var = tk.StringVar()
-gender_label = tk.Label(root, text="Select Gender", font=fs, width=15, bg="yellow", fg="blue")
-gender_label.grid(row=len(labels_texts)+1, column=2, pady=10, sticky="e")
+# Branch selection with dropdown
+branch_label = ttk.Label(app, text="Branch")
+branch_label.grid(row=len(entries), column=0, padx=10, pady=5)
+branch_dropdown = ttk.Combobox(app, textvariable=branch_var, values=["CSE", "ECE", "EEE", "IT", "MECH"], state="readonly")
+branch_dropdown.grid(row=len(entries), column=1, padx=10, pady=5)
+entries.append(branch_var)  # Add branch_var to the list of entries for validation
 
-gender_frame = tk.Frame(root)
-gender_frame.grid(row=len(labels_texts)+1, column=3, pady=10, padx=10, sticky="w")
-ttk.Radiobutton(gender_frame, text="Male", variable=gender_var, value="Male").pack(side="left")
-ttk.Radiobutton(gender_frame, text="Female", variable=gender_var, value="Female").pack(side="left")
-ttk.Radiobutton(gender_frame, text="Other", variable=gender_var, value="Other").pack(side="left")
-gender_var.label_text = "Gender"
+# Course selection with dropdown
+course_label = ttk.Label(app, text="Course")
+course_label.grid(row=len(entries), column=0, padx=10, pady=5)
+course_dropdown = ttk.Combobox(app, textvariable=course_var, values=["B.Tech", "M.Tech", "MBA"], state="readonly")
+course_dropdown.grid(row=len(entries), column=1, padx=10, pady=5)
+entries.append(course_var)  # Add course_var to the list of entries for validation
 
-# Branch and Course Dropdowns
-branches = ["CSE", "IT", "ECE", "EEE", "Mechanical", "Civil"]
-branch_var = tk.StringVar()
-branch_label = tk.Label(root, text="Choose Branch", font=fs, width=15, bg="yellow", fg="blue")
-branch_label.grid(row=len(labels_texts)+2, column=0, pady=10, sticky="e")
+# Date of Birth selection with DateEntry widget
+dob_label = ttk.Label(app, text="Date of Birth")
+dob_label.grid(row=len(entries), column=0, padx=10, pady=5)
+dob_entry = DateEntry(app, date_pattern='yyyy-mm-dd')  # Create DateEntry widget for DOB selection
+dob_entry.grid(row=len(entries), column=1, padx=10, pady=5)
+entries.append(dob_entry)  # Add dob_entry to the list of entries
 
-branch_dropdown = ttk.Combobox(root, font=fs, values=branches, state="readonly", textvariable=branch_var)
-branch_dropdown.grid(row=len(labels_texts)+2, column=1, pady=10, padx=10, sticky="w")
+# Define buttons for form actions: Save, Update, Delete, Clear
+save_button = ttk.Button(app, text="Save", command=save_details)  # Create Save button
+save_button.grid(row=len(entries)+1, column=0, padx=10, pady=10)
 
-courses = ["B.Tech", "M.Tech", "PhD"]
-course_var = tk.StringVar()
-course_label = tk.Label(root, text="Choose Course", font=fs, width=15, bg="yellow", fg="blue")
-course_label.grid(row=len(labels_texts)+2, column=2, pady=10, sticky="e")
+update_button = ttk.Button(app, text="Update", command=update_record)  # Create Update button
+update_button.grid(row=len(entries)+1, column=1, padx=10, pady=10)
 
-course_dropdown = ttk.Combobox(root, font=fs, values=courses, state="readonly", textvariable=course_var)
-course_dropdown.grid(row=len(labels_texts)+2, column=3, pady=10, padx=10, sticky="w")
+delete_button = ttk.Button(app, text="Delete", command=delete_record)  # Create Delete button
+delete_button.grid(row=len(entries)+1, column=2, padx=10, pady=10)
 
-# Create a Style object
-style = ttk.Style()
+clear_button = ttk.Button(app, text="Clear", command=clear_entries)  # Create Clear button
+clear_button.grid(row=len(entries)+1, column=3, padx=10, pady=10)
 
-# Configure the custom style for the buttons
-style.configure('Custom.TButton',
-                font=('Helvetica', 14, 'bold'),
-                foreground='blue',
-                background='yellow',
-                padding=10)
+# Define a Treeview widget to display the records in a table format
+tree = ttk.Treeview(app, columns=("First Name", "Last Name", "Roll Number", "Email", "Mobile", "Alt Mobile", "Branch", "Course", "Gender", "DOB", "Address"),
+                    show="headings", selectmode="browse")
+tree.grid(row=len(entries)+2, column=0, columnspan=4, padx=10, pady=10, sticky="nsew")
+tree.bind("<ButtonRelease-1>", display_selected_record)  # Bind row click to show the record in input fields
 
-# Configure the style for different states (active, disabled)
-style.map('Custom.TButton',
-          foreground=[('active', 'green'), ('disabled', 'gray')],
-          background=[('active', 'black'), ('disabled', 'lightgrey')])
+# Define column headings for the Treeview
+for col in tree["columns"]:
+    tree.heading(col, text=col)
+    tree.column(col, width=100)
 
-btn_search = ttk.Button(root, text="Search",style='Custom.TButton',  command=search_records)
-btn_search.place(x=300,y=670)
+# Create vertical and horizontal scrollbars for the Treeview
+vsb = ttk.Scrollbar(app, orient="vertical", command=tree.yview)
+vsb.grid(row=len(entries)+2, column=4, sticky="ns")
+tree.configure(yscrollcommand=vsb.set)
 
-btn_save = ttk.Button(root, text="Save", style='Custom.TButton',  command=save_details)
-btn_save.place(x=700,y=670)
+hsb = ttk.Scrollbar(app, orient="horizontal", command=tree.xview)
+hsb.grid(row=len(entries)+3, column=0, columnspan=4, sticky="ew")
+tree.configure(xscrollcommand=hsb.set)
 
-btn_update = ttk.Button(root, text="Update", style='Custom.TButton',  command=update_record)
-btn_update.place(x=1100,y=670)
+# Initialize the database connection and fetch the records when the app starts
+init_db()
+show_all_records()
 
-btn_delete = ttk.Button(root, text="Delete", style='Custom.TButton',  command=delete_record)
-btn_delete.place(x=500,y=720)
-
-# Clear Button
-btn_clear = ttk.Button(root, text="Clear", style='Custom.TButton',  command=clear_entries)
-btn_clear.place(x=900,y=720)
-
-# Treeview for displaying records
-tree_frame = tk.Frame(root)
-tree_frame.grid(row=len(labels_texts)+5, column=0, columnspan=4, pady=20, padx=20)
-
-columns = ("first_name", "last_name", "roll_number", "email", "mobile", "alt_mobile", "branch", "course", "gender", "dob", "address")
-tree = ttk.Treeview(tree_frame, columns=columns, show="headings")
-
-verscrlbar = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
-verscrlbar.pack(side='right', fill='y')  # Correct fill direction to 'y' for vertical scrollbar
-tree.configure(yscrollcommand=verscrlbar.set) 
-
-for col in columns:
-    tree.heading(col, text=col.replace("_", " ").title())
-    tree.column(col, width=136)
-
-tree.pack(fill="both", expand=True)
-tree.bind("<ButtonRelease-1>", display_selected_record)  # Bind row selection
-
+# Bind the Enter key to move focus to the next entry field
 for entry in entries:
-    entry.bind("<Return>", move_focus)
+    if isinstance(entry, ttk.Entry):  # Bind only for Entry fields
+        entry.bind("<Return>", move_focus)
 
-show_all_records()  # Load the initial data into the Treeview
+# Run the Tkinter main event loop
+app.mainloop()
 
-root.protocol("WM_DELETE_WINDOW", on_closing)
-root.mainloop()
+# Close the database connection when the app closes
+close_db()
